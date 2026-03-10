@@ -10,9 +10,12 @@ Designed for road-condition monitoring workflows that need both:
 
 ## 📸 Screenshots
 
-| Dashboard | RDD2022 Damage Classes |
-|:---------:|:----------------------:|
+| Dashboard |
+|:---------:|
 | ![Main dashboard](assets/main.png) | 
+
+| RDD2022 Damage Classes |
+|:----------------------:|
 | ![RDD2022 classes](assets/rdd2022.png) |
 
 ---
