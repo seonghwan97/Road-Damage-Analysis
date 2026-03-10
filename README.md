@@ -2,7 +2,7 @@
 
 **Road Damage Analysis** is an end-to-end Python pipeline for collecting road-facing Google Street View imagery, detecting pavement damage with a pretrained YOLOv8 model, and visualizing the results on an interactive web map.
 
-| ![Main video](assets/main.gif) |
+![Main video](assets/main.gif)
 
 Designed for road-condition monitoring workflows that need both:
 - a **macro view** for identifying damaged hotspots across an area
