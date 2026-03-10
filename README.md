@@ -45,8 +45,6 @@ data/processed/                 processed CSV and GeoJSON outputs
 models/                         YOLO weights
 ```
 
-> ⚠️ Do **not** commit `.env`, `data/raw/`, or large `.pt` model files.
-
 ---
 
 ## ⚙️ Requirements
