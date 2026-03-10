@@ -12,7 +12,8 @@ Designed for road-condition monitoring workflows that need both:
 
 | Dashboard | RDD2022 Damage Classes |
 |:---------:|:----------------------:|
-| ![Main dashboard](assets/main.png) | ![RDD2022 classes](assets/rdd2022.png) |
+| ![Main dashboard](assets/main.png) | 
+| ![RDD2022 classes](assets/rdd2022.png) |
 
 ---
 
