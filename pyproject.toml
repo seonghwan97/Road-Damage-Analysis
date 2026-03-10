@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "road-damage-analysis"
+version = "0.1.0"
+description = "End-to-end pipeline for collecting global street-view imagery, detecting road damage, and visualizing maintenance hotspots on a web map."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "fastapi>=0.115.0",
+  "folium>=0.20.0",
+  "numpy>=1.26.0,<2",
+  "orjson>=3.10.0",
+  "pandas>=2.2.0",
+  "Pillow>=10.0.0",
+  "pydantic>=2.8.0",
+  "python-dotenv>=1.0.0",
+  "pyyaml>=6.0.0",
+  "requests>=2.32.0",
+  "shapely>=2.0.0",
+  "torch>=2.3.0",
+  "torchvision>=0.18.0",
+  "typer>=0.16.0",
+  "ultralytics>=8.3.0",
+  "uvicorn>=0.30.0",
+]
+
+[project.scripts]
+road-damage-analysis = "road_damage_analysis.cli:app"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

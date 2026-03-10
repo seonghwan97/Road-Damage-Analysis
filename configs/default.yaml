@@ -1,0 +1,57 @@
+project:
+  area_name: Global Sample Area
+  output_dir: data/processed
+  raw_dir: data/raw
+
+imagery:
+  source: google_street_view
+  bbox:
+    west: -122.5200
+    south: 37.7000
+    east: -122.3500
+    north: 37.8300
+  captured_after: "2023-01-01T00:00:00Z"
+  sample_spacing_deg: 0.003
+  road_sample_spacing_m: 45.0
+  max_locations: 400
+  headings: [0, 180]
+  pitch: 0
+  fov: 90
+  radius_m: 50
+  image_width: 640
+  image_height: 640
+  source_preference: outdoor
+  prefer_road_heading: true
+  bidirectional_headings: true
+  heading_bin_deg: 30
+
+model:
+  framework: ultralytics
+  conf_threshold: 0.5
+  iou_threshold: 0.45
+  image_size: 640
+  device: auto
+  enable_tta: true
+  enable_wbf: true
+  wbf_iou_threshold: 0.55
+  wbf_skip_box_threshold: 0.5
+  crop_bottom_ratio: 0.06
+  class_severity:
+    d00: 0.75
+    d10: 0.75
+    d20: 0.95
+    d40: 1.0
+
+aggregation:
+  nearest_segment_radius_m: 40.0
+  grid_cell_size_deg: 0.01
+  heatmap_radius: 24
+
+web:
+  host: 127.0.0.1
+  port: 8000
+  tiles_url: https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
+  map_center:
+    lat: 37.7650
+    lon: -122.4350
+  initial_zoom: 12

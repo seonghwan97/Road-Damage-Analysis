@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Environments
+.env
+.venv/
+venv/
+conda-meta/
+
+# Packaging
+build/
+dist/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# Data and weights
+data/raw/
+models/*.pt
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db

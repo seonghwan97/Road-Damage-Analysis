@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Road Damage Analysis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+  <style>
+    :root {
+      --bg: #f2efe7;
+      --card-soft: rgba(255,255,255,0.08);
+      --ink: #10211d;
+      --muted: rgba(232, 243, 237, 0.72);
+      --line: rgba(255,255,255,0.12);
+      --danger: #c53b1c;
+      --warn: #efb036;
+      --ok: #2f8f4e;
+      --panel-a: rgba(15,31,27,0.97);
+      --panel-b: rgba(28,52,45,0.94);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Space Grotesk", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 0% 0%, rgba(239,176,54,0.26), transparent 28%),
+        radial-gradient(circle at 100% 10%, rgba(204,88,3,0.18), transparent 30%),
+        linear-gradient(180deg, #f4f1ea, #ebe6da 68%, #e2ddd1);
+    }
+    .shell {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      min-height: 100vh;
+    }
+    .panel {
+      padding: 24px;
+      background: linear-gradient(180deg, var(--panel-a), var(--panel-b));
+      color: #eef7f2;
+      overflow-y: auto;
+      border-right: 1px solid rgba(255,255,255,0.08);
+    }
+    .eyebrow {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.75rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #9dcab8;
+      margin-bottom: 10px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 2.35rem;
+      line-height: 0.94;
+      letter-spacing: -0.04em;
+    }
+    .subhead {
+      margin: 14px 0 24px;
+      color: var(--muted);
+      font-size: 0.98rem;
+      line-height: 1.55;
+    }
+    .stack { display: grid; gap: 14px; }
+    .card {
+      background: var(--card-soft);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 16px 16px 14px;
+      backdrop-filter: blur(12px);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #b9d6ca;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 10px;
+    }
+    .metric {
+      padding: 12px;
+      border-radius: 18px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .metric span {
+      display: block;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #9dcab8;
+    }
+    .metric strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 1.5rem;
+    }
+    .filters, .legend, .chart { display: grid; gap: 10px; }
+    .toggle-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 8px;
+    }
+    label.toggle, .layer-toggle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.92rem;
+      color: #edf7f2;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+    input[type="checkbox"] { accent-color: #cc5803; }
+    input[type="range"] { width: 100%; }
+    .bar {
+      display: grid;
+      grid-template-columns: 1fr 88px 36px;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.82rem;
+    }
+    .bar-track {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+    }
+    .bar-fill { height: 100%; border-radius: 999px; }
+    .legend-item { display:flex; align-items:center; gap:10px; font-size: 0.88rem; color: var(--muted); }
+    .chip { width: 14px; height: 14px; border-radius: 999px; }
+    #map { min-height: 100vh; }
+    .leaflet-popup-content { margin: 14px 14px 16px; width: 320px !important; }
+    .popup-card h3 { margin: 0 0 8px; font-size: 1.05rem; }
+    .popup-meta { display:grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 12px; font-size: 0.82rem; }
+    .popup-kv { padding: 8px; border-radius: 12px; background: #f4f1ea; }
+    .popup-image-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+      border-radius: 16px;
+      background: #111;
+      margin-top: 10px;
+    }
+    .popup-image-wrap img { width: 100%; height: 100%; object-fit: cover; display:block; }
+    .bbox {
+      position: absolute;
+      border: 2px solid #ff5e00;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.08) inset;
+      border-radius: 6px;
+    }
+    .cluster-icon {
+      background: radial-gradient(circle at top, #efb036, #cc5803);
+      color: white;
+      border: 3px solid rgba(255,255,255,0.85);
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.24);
+    }
+    .fab-area {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 800;
+      display: flex;
+      gap: 10px;
+    }
+    .pill {
+      background: rgba(19,31,28,0.82);
+      color: white;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 999px;
+      padding: 10px 14px;
+      backdrop-filter: blur(10px);
+      font-size: 0.85rem;
+    }
+    @media (max-width: 1080px) {
+      .shell { grid-template-columns: 1fr; }
+      #map { min-height: 72vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="panel">
+      <div class="eyebrow">Road Damage Analysis</div>
+      <h1>From City Overview to Field Action</h1>
+      <p class="subhead">City-scale heat, road-segment condition, and field-ready damage cards are shown together in one operational map.</p>
+      <div class="stack">
+        <section class="card">
+          <h2>Area Overview</h2>
+          <div class="metrics">
+            <div class="metric"><span>Area</span><strong id="area-name">__AREA_NAME__</strong></div>
+            <div class="metric"><span>Captured Views</span><strong id="images-collected">0</strong></div>
+            <div class="metric"><span>Total Detections</span><strong id="detections-count">0</strong></div>
+            <div class="metric"><span>Avg Severity</span><strong id="avg-damage">0</strong></div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Layer Controls</h2>
+          <div class="filters">
+            <label class="layer-toggle"><input type="checkbox" id="toggle-heat" checked> Heatmap</label>
+            <label class="layer-toggle"><input type="checkbox" id="toggle-segments" checked> Segment Color-coding</label>
+            <label class="layer-toggle"><input type="checkbox" id="toggle-clusters" checked> Marker Clustering</label>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Filters</h2>
+          <div class="filters">
+            <div>
+              <div style="margin-bottom:8px;">Damage Classes</div>
+              <div class="toggle-grid" id="class-toggles"></div>
+            </div>
+            <div>
+              <div style="margin-bottom:8px;">Minimum Severity <span id="severity-value">0</span></div>
+              <input type="range" id="severity-filter" min="0" max="100" value="0" step="1">
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>Viewport Stats</h2>
+          <div class="metrics">
+            <div class="metric"><span>Visible Detections</span><strong id="visible-count">0</strong></div>
+            <div class="metric"><span>Visible Segments</span><strong id="visible-segments">0</strong></div>
+          </div>
+          <div class="chart" id="class-chart"></div>
+        </section>
+
+        <section class="card">
+          <h2>Legend</h2>
+          <div class="legend">
+            <div class="legend-item"><span class="chip" style="background:#2f8f4e"></span><span>Low severity</span></div>
+            <div class="legend-item"><span class="chip" style="background:#efb036"></span><span>Medium severity</span></div>
+            <div class="legend-item"><span class="chip" style="background:#c53b1c"></span><span>High severity</span></div>
+          </div>
+        </section>
+      </div>
+    </aside>
+    <main id="map"></main>
+  </div>
+
+  <div class="fab-area">
+    <div class="pill" id="map-badge">Operational damage map</div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script>
+    const map = L.map('map', { zoomControl: false }).setView([__MAP_CENTER_LAT__, __MAP_CENTER_LON__], __MAP_ZOOM__);
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.tileLayer('__TILES_URL__', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+    setTimeout(function () { map.invalidateSize(); }, 0);
+
+    const CLASS_META = {
+      'longitudinal crack': { label: 'Longitudinal Crack', color: '#f2c14e' },
+      'transverse crack': { label: 'Transverse Crack', color: '#f6aa1c' },
+      'alligator crack': { label: 'Alligator Crack', color: '#d95d39' },
+      'potholes': { label: 'Pothole', color: '#c1121f' },
+      'pothole': { label: 'Pothole', color: '#c1121f' }
+    };
+
+    const state = {
+      detections: null,
+      segments: null,
+      segmentStats: new Map(),
+      heatLayer: null,
+      segmentLayer: null,
+      clusterLayer: L.markerClusterGroup({
+        maxClusterRadius: 48,
+        spiderfyOnMaxZoom: true,
+        iconCreateFunction: function (cluster) {
+          return L.divIcon({
+            html: '<div class="cluster-icon" style="width:56px;height:56px;">' + cluster.getChildCount() + '</div>',
+            className: '',
+            iconSize: [56, 56]
+          });
+        }
+      }),
+      enabledClasses: new Set(),
+      minSeverity: 0
+    };
+
+    function normalizeClassName(value) {
+      return String(value || '').trim().toLowerCase();
+    }
+
+    function getClassMeta(value) {
+      const key = normalizeClassName(value);
+      return CLASS_META[key] || { label: String(value || 'Unknown'), color: '#7f8c8d' };
+    }
+
+    function scoreColor(score) {
+      if (score >= 70) return '#c53b1c';
+      if (score >= 40) return '#efb036';
+      return '#2f8f4e';
+    }
+
+    function markerIcon(props) {
+      const meta = getClassMeta(props.class_name);
+      const background = scoreColor(Number(props.damage_score || 0));
+      return L.divIcon({
+        className: '',
+        iconSize: [18, 18],
+        html: '<div style="width:18px;height:18px;border-radius:999px;background:' + background + ';border:2px solid white;box-shadow:0 6px 16px rgba(0,0,0,.25);"></div>'
+      });
+    }
+
+    function popupContent(props, lat, lon) {
+      const label = getClassMeta(props.class_name).label;
+      const image = props.media_url ? '<div class="popup-image-wrap"><img src="' + props.media_url + '" alt="Road damage image">' + bboxOverlay(props) + '</div>' : '';
+      const headingText = props.heading === null || props.heading === undefined ? 'n/a' : props.heading;
+      const roadName = props.road_name || 'Unknown';
+      const capturedAt = props.captured_at || 'n/a';
+      return '<div class="popup-card">'
+        + '<h3>' + label + '</h3>'
+        + '<div><strong>Severity:</strong> ' + Number(props.damage_score || 0).toFixed(1)
+        + ' | <strong>Confidence:</strong> ' + Number(props.confidence || 0).toFixed(2) + '</div>'
+        + '<div class="popup-meta">'
+        + '<div class="popup-kv"><strong>Road</strong><br>' + roadName + '</div>'
+        + '<div class="popup-kv"><strong>Heading</strong><br>' + headingText + '</div>'
+        + '<div class="popup-kv"><strong>Date</strong><br>' + capturedAt + '</div>'
+        + '<div class="popup-kv"><strong>GPS</strong><br>' + lat.toFixed(6) + ', ' + lon.toFixed(6) + '</div>'
+        + '</div>' + image + '</div>';
+    }
+
+    function bboxOverlay(props) {
+      const width = Number(props.image_width || 0);
+      const height = Number(props.image_height || 0);
+      if (!width || !height) return '';
+      const left = (Number(props.bbox_x1 || 0) / width) * 100;
+      const top = (Number(props.bbox_y1 || 0) / height) * 100;
+      const boxWidth = ((Number(props.bbox_x2 || 0) - Number(props.bbox_x1 || 0)) / width) * 100;
+      const boxHeight = ((Number(props.bbox_y2 || 0) - Number(props.bbox_y1 || 0)) / height) * 100;
+      return '<div class="bbox" style="left:' + left + '%;top:' + top + '%;width:' + boxWidth + '%;height:' + boxHeight + '%;"></div>';
+    }
+
+    function filteredDetections() {
+      const features = state.detections && state.detections.features ? state.detections.features : [];
+      return features.filter(function (feature) {
+        const props = feature.properties || {};
+        const className = normalizeClassName(props.class_name);
+        const score = Number(props.damage_score || 0);
+        return state.enabledClasses.has(className) && score >= state.minSeverity;
+      });
+    }
+
+    function buildSegmentStats(features) {
+      const stats = new Map();
+      features.forEach(function (feature) {
+        const props = feature.properties || {};
+        const segmentId = props.segment_id;
+        if (segmentId === null || segmentId === undefined || segmentId === '') return;
+        const key = String(segmentId);
+        const entry = stats.get(key) || { count: 0, scoreSum: 0, classCounts: {} };
+        const className = normalizeClassName(props.class_name);
+        entry.count += 1;
+        entry.scoreSum += Number(props.damage_score || 0);
+        entry.classCounts[className] = (entry.classCounts[className] || 0) + 1;
+        stats.set(key, entry);
+      });
+      stats.forEach(function (entry) {
+        entry.meanScore = entry.count ? entry.scoreSum / entry.count : 0;
+        let topClass = null;
+        let topCount = -1;
+        Object.keys(entry.classCounts).forEach(function (name) {
+          if (entry.classCounts[name] > topCount) {
+            topCount = entry.classCounts[name];
+            topClass = name;
+          }
+        });
+        entry.topClass = topClass;
+      });
+      state.segmentStats = stats;
+    }
+
+    function buildHeatLayer(features) {
+      const points = features.map(function (feature) {
+        const coords = feature.geometry.coordinates;
+        return [coords[1], coords[0], Math.max(0.2, Number(feature.properties.damage_score || 0) / 100)];
+      });
+      return L.heatLayer(points, {
+        radius: __HEAT_RADIUS__,
+        blur: 26,
+        minOpacity: 0.45,
+        maxZoom: 18,
+        gradient: { 0.2: '#2f8f4e', 0.5: '#efb036', 0.8: '#c53b1c' }
+      });
+    }
+
+    function buildClusterLayer(features) {
+      state.clusterLayer.clearLayers();
+      features.forEach(function (feature) {
+        const coords = feature.geometry.coordinates;
+        const lon = Number(coords[0]);
+        const lat = Number(coords[1]);
+        const marker = L.marker([lat, lon], { icon: markerIcon(feature.properties || {}) });
+        marker.bindPopup(popupContent(feature.properties || {}, lat, lon));
+        state.clusterLayer.addLayer(marker);
+      });
+      return state.clusterLayer;
+    }
+
+    function buildSegmentLayer() {
+      return L.geoJSON(state.segments, {
+        filter: function (feature) {
+          const id = feature.properties && feature.properties.segment_id;
+          return id !== null && id !== undefined && state.segmentStats.has(String(id));
+        },
+        style: function (feature) {
+          const stat = state.segmentStats.get(String(feature.properties.segment_id));
+          const score = stat ? stat.meanScore : 0;
+          return {
+            color: scoreColor(score),
+            weight: score >= 70 ? 6 : score >= 40 ? 5 : 3,
+            opacity: 0.92
+          };
+        },
+        onEachFeature: function (feature, layer) {
+          const stat = state.segmentStats.get(String(feature.properties.segment_id));
+          const topLabel = stat && stat.topClass ? getClassMeta(stat.topClass).label : 'n/a';
+          layer.bindPopup('<strong>' + (feature.properties.road_name || 'Road Segment') + '</strong>'
+            + '<br>Avg score: ' + Number(stat ? stat.meanScore : 0).toFixed(1)
+            + '<br>Detections: ' + (stat ? stat.count : 0)
+            + '<br>Top class: ' + topLabel);
+        }
+      });
+    }
+
+    function renderClassToggles(features) {
+      const container = document.getElementById('class-toggles');
+      container.innerHTML = '';
+      const names = Array.from(new Set(features.map(function (feature) {
+        return normalizeClassName(feature.properties && feature.properties.class_name);
+      }))).filter(Boolean).sort();
+      state.enabledClasses = new Set(names);
+      names.forEach(function (name) {
+        const meta = getClassMeta(name);
+        const label = document.createElement('label');
+        label.className = 'toggle';
+        label.innerHTML = '<input type="checkbox" data-class="' + name + '" checked> <span>' + meta.label + '</span>';
+        container.appendChild(label);
+      });
+      container.onchange = function (event) {
+        const input = event.target;
+        if (!(input instanceof HTMLInputElement)) return;
+        const className = input.dataset.class;
+        if (!className) return;
+        if (input.checked) state.enabledClasses.add(className); else state.enabledClasses.delete(className);
+        redraw();
+      };
+    }
+
+    function updateViewportStats(features) {
+      const bounds = map.getBounds();
+      const visible = features.filter(function (feature) {
+        const coords = feature.geometry.coordinates;
+        return bounds.contains([coords[1], coords[0]]);
+      });
+      const visibleSegmentIds = new Set();
+      const counts = {};
+      visible.forEach(function (feature) {
+        const props = feature.properties || {};
+        const className = normalizeClassName(props.class_name);
+        const segmentId = props.segment_id;
+        counts[className] = (counts[className] || 0) + 1;
+        if (segmentId !== null && segmentId !== undefined && segmentId !== '') {
+          visibleSegmentIds.add(String(segmentId));
+        }
+      });
+      document.getElementById('visible-count').textContent = visible.length;
+      document.getElementById('visible-segments').textContent = visibleSegmentIds.size;
+      const chart = document.getElementById('class-chart');
+      chart.innerHTML = '';
+      const names = Array.from(state.enabledClasses);
+      const max = Math.max(1, ...names.map(function (name) { return counts[name] || 0; }));
+      names.forEach(function (name) {
+        const meta = getClassMeta(name);
+        const count = counts[name] || 0;
+        const row = document.createElement('div');
+        row.className = 'bar';
+        row.innerHTML = '<div>' + meta.label + '</div>'
+          + '<div class="bar-track"><div class="bar-fill" style="width:' + ((count / max) * 100) + '%;background:' + meta.color + '"></div></div>'
+          + '<div>' + count + '</div>';
+        chart.appendChild(row);
+      });
+    }
+
+    function removeLayer(layer) {
+      if (layer && map.hasLayer(layer)) {
+        map.removeLayer(layer);
+      }
+    }
+
+    function redraw() {
+      const features = filteredDetections();
+      buildSegmentStats(features);
+      removeLayer(state.heatLayer);
+      removeLayer(state.segmentLayer);
+      removeLayer(state.clusterLayer);
+
+      if (document.getElementById('toggle-heat').checked && features.length > 0) {
+        state.heatLayer = buildHeatLayer(features).addTo(map);
+      }
+      if (document.getElementById('toggle-segments').checked && state.segments) {
+        state.segmentLayer = buildSegmentLayer().addTo(map);
+      }
+      if (document.getElementById('toggle-clusters').checked && features.length > 0) {
+        buildClusterLayer(features).addTo(map);
+      }
+      updateViewportStats(features);
+      document.getElementById('map-badge').textContent = features.length + ' filtered detections';
+    }
+
+    function fetchJson(url) {
+      return fetch(url).then(function (response) {
+        if (!response.ok) {
+          throw new Error(url + ' returned ' + response.status);
+        }
+        return response.json();
+      });
+    }
+
+    document.getElementById('severity-filter').addEventListener('input', function (event) {
+      state.minSeverity = Number(event.target.value || 0);
+      document.getElementById('severity-value').textContent = String(state.minSeverity);
+      redraw();
+    });
+
+    ['toggle-heat', 'toggle-segments', 'toggle-clusters'].forEach(function (id) {
+      document.getElementById(id).addEventListener('change', redraw);
+    });
+
+    map.on('moveend', function () {
+      updateViewportStats(filteredDetections());
+    });
+
+    Promise.all([
+      fetchJson('/api/summary'),
+      fetchJson('/api/detections.geojson'),
+      fetchJson('/api/segments.geojson')
+    ]).then(function (results) {
+      const summary = results[0];
+      const detections = results[1];
+      const segments = results[2];
+      state.detections = detections;
+      state.segments = segments;
+      renderClassToggles(detections.features || []);
+      document.getElementById('area-name').textContent = summary.area_name || '__AREA_NAME__';
+      document.getElementById('images-collected').textContent = summary.images_collected || 0;
+      document.getElementById('detections-count').textContent = summary.detections_count || 0;
+      document.getElementById('avg-damage').textContent = Number(summary.avg_damage_score || 0).toFixed(1);
+      redraw();
+    }).catch(function (error) {
+      console.error(error);
+      document.getElementById('map-badge').textContent = 'Map data failed to load';
+    });
+  </script>
+</body>
+</html>
